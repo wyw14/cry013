@@ -1,0 +1,69 @@
+openapi: 3.0.3
+info:
+  title: 本地安全密码管理器 CLI Collaboration API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /auth/login:
+    post:
+      summary: Sign in and issue access/refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200': {description: Authenticated}
+        '403': {$ref: '#/components/responses/Error'}
+  /vaults/{vaultID}/entries:
+    get:
+      security: [{bearerAuth: []}]
+      summary: Search visible idea entries
+      parameters:
+        - {name: vaultID, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: q, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: page_size, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+      responses:
+        '200': {description: Visible entries only}
+        '403': {$ref: '#/components/responses/Error'}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Idempotently create an idea entry
+      parameters:
+        - {name: vaultID, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string}}
+      responses:
+        '201': {description: Created or replayed result}
+        '400': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  responses:
+    Error:
+      description: Stable application error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email,password]
+      properties:
+        email: {type: string, format: email}
+        password: {type: string, format: password}
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code,message,request_id]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            request_id: {type: string}
+            fields: {type: object, additionalProperties: {type: string}}

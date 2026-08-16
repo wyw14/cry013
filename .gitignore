@@ -1,0 +1,15 @@
+.env
+*.local
+bin/
+coverage.out
+node_modules/
+web/dist/
+.idea/
+.vscode/
+.DS_Store
+*.db
+*.sqlite
+.gocache/
+.gomodcache/
+.codex/
+.claude/
