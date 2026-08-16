@@ -54,7 +54,7 @@ func (s *Store) ListEntries(ctx context.Context, vaultID string) ([]domain.Entry
 	defer s.mu.RUnlock()
 	items := make([]domain.Entry, 0, len(s.entries))
 	for _, entry := range s.entries {
-		if entry.VaultID == vaultID {
+		if entry.VaultID == vaultID && entry.DeletedAt == nil {
 			items = append(items, cloneEntry(entry))
 		}
 	}

@@ -54,7 +54,7 @@ func (s *AdminService) PlatformStats(ctx context.Context, actorID string, now ti
 			continue
 		}
 		for _, entry := range entries {
-			if entry.DeletedAt != nil {
+			if entry.Visibility == domain.VisibilityPrivate || entry.DeletedAt != nil {
 				stats.PrivateHidden++
 				continue
 			}
