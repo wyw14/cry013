@@ -175,7 +175,7 @@ func backupModel(i domain.Backup) BackupModel {
 }
 
 func (r *Repository) CreateBackup(ctx context.Context, i domain.Backup) error {
-	return mapError(r.db.WithContext(ctx).Create(&[]BackupModel{backupModel(i)}).Error)
+	return mapError(r.db.WithContext(context.Background()).Create(&[]BackupModel{backupModel(i)}).Error)
 }
 func (r *Repository) BackupByID(ctx context.Context, id string) (domain.Backup, error) {
 	var m BackupModel

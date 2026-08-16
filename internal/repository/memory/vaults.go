@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/wyw14/cry013/internal/domain"
 )
@@ -129,9 +130,10 @@ func (s *Store) RestoreVault(ctx context.Context, vaultID, fromID, toID string) 
 }
 
 func (s *Store) CreateBackup(ctx context.Context, createBackup domain.Backup) error {
-	if err := s.wait(ctx); err != nil {
-		return err
-	}
+	s.faultMu.RLock()
+	delay := s.delay
+	s.faultMu.RUnlock()
+	time.Sleep(delay)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.createBackups[createBackup.ID]; exists {
