@@ -62,15 +62,8 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (AuthTo
 func (s *AuthService) Refresh(ctx context.Context, plain string) (AuthTokens, error) {
 	now := s.clock.Now()
 	hash := s.tokens.HashRefresh(plain)
-	stored, err := s.repo.RefreshToken(ctx, hash)
+	stored, err := s.repo.ConsumeRefreshToken(ctx, hash, now)
 	if err != nil {
-		return AuthTokens{}, err
-	}
-	if err := stored.CanRotate(now); err != nil {
-		return AuthTokens{}, err
-	}
-	stored.UsedAt = &now
-	if err := s.repo.UpdateRefreshToken(ctx, stored); err != nil {
 		return AuthTokens{}, err
 	}
 	user, err := s.repo.UserByID(ctx, stored.UserID)
