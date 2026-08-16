@@ -144,13 +144,26 @@ func (r *Repository) ListVaultLeases(ctx context.Context, vaultID string) ([]dom
 }
 
 func (r *Repository) RestoreVault(ctx context.Context, vaultID, fromID, toID string) error {
-	if err := r.db.WithContext(ctx).Model(&VaultModel{}).Where("id = ? AND owner_id = ?", vaultID, fromID).Update("owner_id", toID).Error; err != nil {
-		return err
-	}
-	if err := r.db.WithContext(ctx).Model(&VaultLeaseModel{}).Where("vault_id = ? AND user_id = ?", vaultID, fromID).Update("role", string(domain.RoleAdmin)).Error; err != nil {
-		return err
-	}
-	return r.db.WithContext(ctx).Model(&VaultLeaseModel{}).Where("vault_id = ? AND user_id = ?", vaultID, toID).Update("role", string(domain.RoleOwner)).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ws VaultModel
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ws, "id = ?", vaultID).Error; err != nil {
+			return mapError(err)
+		}
+		if ws.OwnerID != fromID {
+			return domain.ErrInvalidTransition
+		}
+		if err := tx.Model(&VaultLeaseModel{}).Where("vault_id = ? AND user_id = ?", vaultID, fromID).Update("role", string(domain.RoleAdmin)).Error; err != nil {
+			return err
+		}
+		result := tx.Model(&VaultLeaseModel{}).Where("vault_id = ? AND user_id = ? AND status = ?", vaultID, toID, string(domain.VaultLeaseActive)).Update("role", string(domain.RoleOwner))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return domain.ErrInvalidTransition
+		}
+		return tx.Model(&VaultModel{}).Where("id = ?", vaultID).Update("owner_id", toID).Error
+	})
 }
 
 func backupFromModel(m BackupModel) domain.Backup {

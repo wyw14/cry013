@@ -89,21 +89,7 @@ func (s *VaultService) RestoreVault(ctx context.Context, actorID, vaultID, targe
 	if err := domain.ValidateTransfer(owner, target); err != nil {
 		return err
 	}
-	vault, err := s.repo.VaultByID(ctx, vaultID)
-	if err != nil {
-		return err
-	}
-	vault.OwnerID = targetID
-	vault.UpdatedAt = s.clock.Now()
-	if err := s.repo.UpdateVault(ctx, vault); err != nil {
-		return err
-	}
-	owner.Role = domain.RoleAdmin
-	if err := s.repo.UpsertVaultLease(ctx, owner); err != nil {
-		return err
-	}
-	target.Role = domain.RoleOwner
-	if err := s.repo.UpsertVaultLease(ctx, target); err != nil {
+	if err := s.repo.RestoreVault(ctx, vaultID, actorID, targetID); err != nil {
 		return err
 	}
 	now := s.clock.Now()

@@ -63,12 +63,6 @@ func (s *Store) UpsertVaultLease(ctx context.Context, member domain.VaultLease) 
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
-	s.faultMu.RLock()
-	fail := s.failOwnershipChange
-	s.faultMu.RUnlock()
-	if fail && member.Role == domain.RoleOwner {
-		return errors.New("simulated vaultLease update failure")
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.members[member.VaultID] == nil {
@@ -122,13 +116,13 @@ func (s *Store) RestoreVault(ctx context.Context, vaultID, fromID, toID string) 
 	if !fromOK || !toOK || ws.OwnerID != fromID {
 		return domain.ErrInvalidTransition
 	}
-	ws.OwnerID = toID
-	s.vaults[vaultID] = ws
 	if fail {
 		return errors.New("simulated transaction failure")
 	}
+	ws.OwnerID = toID
 	from.Role = domain.RoleAdmin
 	to.Role = domain.RoleOwner
+	s.vaults[vaultID] = ws
 	s.members[vaultID][fromID] = from
 	s.members[vaultID][toID] = to
 	return nil
