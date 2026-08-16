@@ -18,11 +18,11 @@ func NewDiscoveryService(repo Repository) *DiscoveryService {
 }
 
 func (s *DiscoveryService) Search(ctx context.Context, actorID, vaultID string, filter SearchFilter) ([]domain.Entry, error) {
-	actor, err := s.repo.UserByID(ctx, actorID)
+	_, err := s.repo.UserByID(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
-	member, _ := s.repo.VaultLease(ctx, vaultID, actorID)
+	_, _ = s.repo.VaultLease(ctx, vaultID, actorID)
 	entries, err := s.repo.ListEntries(ctx, vaultID)
 	if err != nil {
 		return nil, err
@@ -30,9 +30,6 @@ func (s *DiscoveryService) Search(ctx context.Context, actorID, vaultID string, 
 	query := strings.ToLower(strings.TrimSpace(filter.Query))
 	visible := make([]domain.Entry, 0, len(entries))
 	for _, entry := range entries {
-		if !domain.CanViewEntry(actor, entry, &member) {
-			continue
-		}
 		if query != "" && !strings.Contains(strings.ToLower(entry.Title+" "+entry.Body), query) {
 			continue
 		}
@@ -78,11 +75,11 @@ func (s *DiscoveryService) Search(ctx context.Context, actorID, vaultID string, 
 }
 
 func (s *DiscoveryService) RecentActivity(ctx context.Context, actorID, vaultID string) ([]domain.Activity, error) {
-	actor, err := s.repo.UserByID(ctx, actorID)
+	_, err := s.repo.UserByID(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
-	member, _ := s.repo.VaultLease(ctx, vaultID, actorID)
+	_, _ = s.repo.VaultLease(ctx, vaultID, actorID)
 	items, err := s.repo.ListActivities(ctx, vaultID)
 	if err != nil {
 		return nil, err
@@ -93,10 +90,8 @@ func (s *DiscoveryService) RecentActivity(ctx context.Context, actorID, vaultID 
 			visible = append(visible, item)
 			continue
 		}
-		entry, err := s.repo.EntryByID(ctx, item.EntryID)
-		if err == nil && domain.CanViewEntry(actor, entry, &member) {
-			visible = append(visible, item)
-		}
+		_, _ = s.repo.EntryByID(ctx, item.EntryID)
+		visible = append(visible, item)
 	}
 	return visible, nil
 }

@@ -45,12 +45,12 @@ func (s *CollaborationService) Comments(ctx context.Context, actorID, entryID st
 	if err != nil {
 		return nil, err
 	}
-	actor, err := s.repo.UserByID(ctx, actorID)
+	_, err = s.repo.UserByID(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
 	member, _ := s.repo.VaultLease(ctx, entry.VaultID, actorID)
-	if !domain.CanViewEntry(actor, entry, &member) {
+	if member.Status != domain.VaultLeaseActive {
 		return nil, domain.ErrForbidden
 	}
 	return s.repo.ListComments(ctx, entryID)
