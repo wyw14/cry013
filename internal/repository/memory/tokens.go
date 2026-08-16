@@ -39,9 +39,6 @@ func (s *Store) UpdateRefreshToken(ctx context.Context, token domain.RefreshToke
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.tokens[token.Hash]; !exists {
-		return domain.ErrNotFound
-	}
 	s.tokens[token.Hash] = token
 	return nil
 }

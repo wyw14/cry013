@@ -301,14 +301,7 @@ func (r *Repository) RefreshToken(ctx context.Context, hash string) (domain.Refr
 	return tokenFromModel(m), mapError(err)
 }
 func (r *Repository) UpdateRefreshToken(ctx context.Context, t domain.RefreshToken) error {
-	result := r.db.WithContext(ctx).Model(&RefreshTokenModel{}).Where("hash = ?", t.Hash).Updates(tokenModel(t))
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
-	return nil
+	return r.db.WithContext(ctx).Save(&RefreshTokenModel{Hash: t.Hash, UserID: t.UserID, FamilyID: t.FamilyID, ExpiresAt: t.ExpiresAt, UsedAt: t.UsedAt, RevokedAt: t.RevokedAt}).Error
 }
 
 func (r *Repository) ConsumeRefreshToken(ctx context.Context, hash string, now time.Time) (domain.RefreshToken, error) {

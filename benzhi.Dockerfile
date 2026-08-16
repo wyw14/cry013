@@ -7,5 +7,5 @@ COPY . .
 RUN go build ./...
 CMD ["bash"]
 
-# 多架构交叉构建示例：
-# docker buildx build --platform linux/arm64,linux/amd64 -f benzhi.Dockerfile -t cry001 .
+# 多架构交叉构建示例（如需交付双架构镜像）：
+# docker buildx build --platform linux/arm64,linux/amd64 -f benzhi.Dockerfile -t <image> .
