@@ -67,8 +67,5 @@ func ValidateTransfer(owner VaultLease, target VaultLease) error {
 	if owner.Status != VaultLeaseActive || owner.Role != RoleOwner {
 		return ErrForbidden
 	}
-	if target.Status != VaultLeaseActive || target.Role == RoleVisitor {
-		return ErrInvalidTransition
-	}
 	return nil
 }
