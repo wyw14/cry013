@@ -337,12 +337,34 @@ func (r *Repository) RevokeTokenFamily(ctx context.Context, familyID string, now
 }
 
 func (r *Repository) DoIdempotent(ctx context.Context, scope string, fn func() (string, error)) (string, error) {
+	entry := IdempotencyModel{Scope: scope, State: "running", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&entry)
+	if result.Error != nil {
+		return "", result.Error
+	}
+	if result.RowsAffected == 0 {
+		var existing IdempotencyModel
+		for i := 0; i < 100; i++ {
+			if err := r.db.WithContext(ctx).First(&existing, "scope = ?", scope).Error; err != nil {
+				return "", err
+			}
+			if existing.State == "done" {
+				return existing.Value, nil
+			}
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+		return "", errors.New("idempotency operation timed out")
+	}
 	value, err := fn()
 	if err != nil {
+		_ = r.db.WithContext(ctx).Delete(&IdempotencyModel{}, "scope = ?", scope).Error
 		return "", err
 	}
-	entry := IdempotencyModel{Scope: scope, Value: value, State: "done", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
-	if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&entry).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&IdempotencyModel{}).Where("scope = ?", scope).Updates(map[string]any{"state": "done", "value": value, "updated_at": time.Now().UTC()}).Error; err != nil {
 		return "", err
 	}
 	return value, nil

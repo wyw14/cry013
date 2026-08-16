@@ -1,9 +1,6 @@
 package memory
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 func (s *Store) DoIdempotent(ctx context.Context, scope string, fn func() (string, error)) (string, error) {
 	if err := checkContext(ctx); err != nil {
@@ -12,18 +9,23 @@ func (s *Store) DoIdempotent(ctx context.Context, scope string, fn func() (strin
 	s.idemMu.Lock()
 	if existing, ok := s.idem[scope]; ok {
 		s.idemMu.Unlock()
-		return existing.value, existing.err
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-existing.done:
+			return existing.value, existing.err
+		}
 	}
+	entry := &idemResult{done: make(chan struct{})}
+	s.idem[scope] = entry
 	s.idemMu.Unlock()
 
-	time.Sleep(5 * time.Millisecond)
-	value, err := fn()
-	if err == nil {
-		done := make(chan struct{})
-		close(done)
+	entry.value, entry.err = fn()
+	close(entry.done)
+	if entry.err != nil {
 		s.idemMu.Lock()
-		s.idem[scope] = &idemResult{done: done, value: value}
+		delete(s.idem, scope)
 		s.idemMu.Unlock()
 	}
-	return value, err
+	return entry.value, entry.err
 }
