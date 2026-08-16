@@ -169,7 +169,7 @@ func (h *Handler) CreateEntry(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	entry, err := h.Entries.Create(c.Request.Context(), appmw.ActorID(c), c.GetHeader("Idempotency-Key"), application.CreateEntryInput{VaultID: c.Param("vaultID"), Title: in.Title, Body: in.Body, Type: in.Type, Visibility: in.Visibility, Priority: in.Priority, Tags: in.Tags, AssigneeID: in.AssigneeID}, appmw.Meta(c))
+	entry, err := h.Entries.Create(c.Request.Context(), appmw.ActorID(c), c.GetHeader("X-Request-ID"), application.CreateEntryInput{VaultID: c.Param("vaultID"), Title: in.Title, Body: in.Body, Type: in.Type, Visibility: in.Visibility, Priority: in.Priority, Tags: in.Tags, AssigneeID: in.AssigneeID}, appmw.Meta(c))
 	if err != nil {
 		writeError(c, err)
 		return
