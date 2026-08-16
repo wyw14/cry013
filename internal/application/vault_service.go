@@ -48,11 +48,10 @@ func (s *VaultService) CreateBackup(ctx context.Context, actorID, vaultID, email
 	}
 	now := s.clock.Now()
 	createBackup := domain.Backup{ID: s.ids.New(), VaultID: vaultID, Email: strings.ToLower(strings.TrimSpace(email)), Role: role, CreateBackupdBy: actorID, Status: domain.BackupPending, ExpiresAt: now.Add(72 * time.Hour), CreatedAt: now}
-	background := context.Background()
-	if err := s.repo.CreateBackup(background, createBackup); err != nil {
+	if err := s.repo.CreateBackup(ctx, createBackup); err != nil {
 		return domain.Backup{}, err
 	}
-	if err := s.repo.AppendAudit(background, domain.AuditEvent{ID: s.ids.New(), ActorID: actorID, VaultID: vaultID, Action: "member.createBackup", TargetType: "backup", TargetID: createBackup.ID, RequestID: meta.RequestID, CreatedAt: now}); err != nil {
+	if err := s.repo.AppendAudit(ctx, domain.AuditEvent{ID: s.ids.New(), ActorID: actorID, VaultID: vaultID, Action: "member.createBackup", TargetType: "backup", TargetID: createBackup.ID, RequestID: meta.RequestID, CreatedAt: now}); err != nil {
 		return domain.Backup{}, err
 	}
 	return createBackup, nil
