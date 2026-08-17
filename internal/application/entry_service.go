@@ -36,7 +36,7 @@ func (s *EntryService) Create(ctx context.Context, actorID, idempotencyKey strin
 	if strings.TrimSpace(in.Title) == "" || idempotencyKey == "" {
 		return domain.Entry{}, domain.ErrInvalidTransition
 	}
-	scope := domain.IdempotencyScope(in.VaultID, actorID, "entry.create", meta.RequestID)
+	scope := domain.IdempotencyScope(in.VaultID, actorID, "entry.create", idempotencyKey)
 	entryID, err := s.repo.DoIdempotent(ctx, scope, func() (string, error) {
 		now := s.clock.Now()
 		entry := domain.Entry{ID: s.ids.New(), VaultID: in.VaultID, Title: strings.TrimSpace(in.Title), Body: in.Body, Type: in.Type, Visibility: in.Visibility, Status: domain.EntryDraft, Priority: in.Priority, Tags: append([]string(nil), in.Tags...), CreatorID: actorID, AssigneeID: in.AssigneeID, CreatedAt: now, UpdatedAt: now}

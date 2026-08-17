@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/wyw14/cry013/internal/domain"
@@ -10,7 +11,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type Repository struct{ db *gorm.DB }
+type Repository struct {
+	db     *gorm.DB
+	idemMu sync.Mutex
+}
 
 func NewRepository(db *gorm.DB) *Repository { return &Repository{db: db} }
 
@@ -337,12 +341,27 @@ func (r *Repository) RevokeTokenFamily(ctx context.Context, familyID string, now
 }
 
 func (r *Repository) DoIdempotent(ctx context.Context, scope string, fn func() (string, error)) (string, error) {
+	r.idemMu.Lock()
+	defer r.idemMu.Unlock()
+	var existing IdempotencyModel
+	if err := r.db.WithContext(ctx).First(&existing, "scope = ?", scope).Error; err == nil {
+		return existing.Value, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
+	}
 	value, err := fn()
 	if err != nil {
 		return "", err
 	}
 	entry := IdempotencyModel{Scope: scope, Value: value, State: "done", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
-	if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&entry).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(&entry).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			var again IdempotencyModel
+			if err := r.db.WithContext(ctx).First(&again, "scope = ?", scope).Error; err != nil {
+				return "", err
+			}
+			return again.Value, nil
+		}
 		return "", err
 	}
 	return value, nil
