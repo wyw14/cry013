@@ -18,11 +18,15 @@ func NewDiscoveryService(repo Repository) *DiscoveryService {
 }
 
 func (s *DiscoveryService) Search(ctx context.Context, actorID, vaultID string, filter SearchFilter) ([]domain.Entry, error) {
-	_, err := s.repo.UserByID(ctx, actorID)
+	actor, err := s.repo.UserByID(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
-	_, _ = s.repo.VaultLease(ctx, vaultID, actorID)
+	lease, _ := s.repo.VaultLease(ctx, vaultID, actorID)
+	member := (*domain.VaultLease)(nil)
+	if lease.Status == domain.VaultLeaseActive {
+		member = &lease
+	}
 	entries, err := s.repo.ListEntries(ctx, vaultID)
 	if err != nil {
 		return nil, err
@@ -30,6 +34,9 @@ func (s *DiscoveryService) Search(ctx context.Context, actorID, vaultID string, 
 	query := strings.ToLower(strings.TrimSpace(filter.Query))
 	visible := make([]domain.Entry, 0, len(entries))
 	for _, entry := range entries {
+		if !domain.CanViewEntry(actor, entry, member) {
+			continue
+		}
 		if query != "" && !strings.Contains(strings.ToLower(entry.Title+" "+entry.Body), query) {
 			continue
 		}
@@ -75,22 +82,38 @@ func (s *DiscoveryService) Search(ctx context.Context, actorID, vaultID string, 
 }
 
 func (s *DiscoveryService) RecentActivity(ctx context.Context, actorID, vaultID string) ([]domain.Activity, error) {
-	_, err := s.repo.UserByID(ctx, actorID)
+	actor, err := s.repo.UserByID(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
-	_, _ = s.repo.VaultLease(ctx, vaultID, actorID)
+	lease, _ := s.repo.VaultLease(ctx, vaultID, actorID)
+	member := (*domain.VaultLease)(nil)
+	if lease.Status == domain.VaultLeaseActive {
+		member = &lease
+	}
 	items, err := s.repo.ListActivities(ctx, vaultID)
 	if err != nil {
 		return nil, err
 	}
+	entryCache := make(map[string]domain.Entry, len(items))
 	visible := make([]domain.Activity, 0, len(items))
 	for _, item := range items {
 		if item.EntryID == "" {
 			visible = append(visible, item)
 			continue
 		}
-		_, _ = s.repo.EntryByID(ctx, item.EntryID)
+		entry, ok := entryCache[item.EntryID]
+		if !ok {
+			loaded, err := s.repo.EntryByID(ctx, item.EntryID)
+			if err != nil {
+				continue
+			}
+			entry = loaded
+			entryCache[item.EntryID] = entry
+		}
+		if !domain.CanViewEntry(actor, entry, member) {
+			continue
+		}
 		visible = append(visible, item)
 	}
 	return visible, nil

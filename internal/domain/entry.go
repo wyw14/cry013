@@ -81,7 +81,7 @@ func CanViewEntry(actor User, entry Entry, member *VaultLease) bool {
 	case VisibilityVault:
 		return member != nil && member.Status == VaultLeaseActive
 	case VisibilityPrivate:
-		return member != nil && member.Status == VaultLeaseActive
+		return false
 	default:
 		return false
 	}
