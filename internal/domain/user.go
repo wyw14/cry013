@@ -44,5 +44,8 @@ func (t RefreshToken) CanRotate(now time.Time) error {
 	if !now.Before(t.ExpiresAt) {
 		return ErrTokenRevoked
 	}
+	if t.UsedAt != nil {
+		return ErrTokenReplayed
+	}
 	return nil
 }
